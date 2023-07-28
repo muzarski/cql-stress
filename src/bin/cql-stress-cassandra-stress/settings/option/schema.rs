@@ -53,7 +53,7 @@ impl SchemaOption {
 
     fn from_handles(handles: SchemaParamHandles) -> Self {
         let replication_strategy = handles.replication_strategy.get().unwrap();
-        let replication_factor = handles.replication_factor.get_type::<u64>().unwrap();
+        let replication_factor = handles.replication_factor.get().unwrap();
         let replication_opts = handles.replication_opts.get_arbitrary().unwrap();
         let keyspace = handles.keyspace.get().unwrap();
         let compaction_strategy = handles.compaction_strategy.get();
@@ -73,13 +73,13 @@ impl SchemaOption {
 }
 
 struct SchemaParamHandles {
-    replication_factor: SimpleParamHandle,
-    replication_strategy: SimpleParamHandle,
+    replication_factor: SimpleParamHandle<u64>,
+    replication_strategy: SimpleParamHandle<String>,
     replication_opts: MultiParamAcceptsArbitraryHandle,
-    keyspace: SimpleParamHandle,
-    compaction_strategy: SimpleParamHandle,
+    keyspace: SimpleParamHandle<String>,
+    compaction_strategy: SimpleParamHandle<String>,
     compaction_opts: MultiParamAcceptsArbitraryHandle,
-    compression: SimpleParamHandle,
+    compression: SimpleParamHandle<String>,
 }
 
 fn prepare_parser() -> (ParamsParser, SchemaParamHandles) {
@@ -87,18 +87,12 @@ fn prepare_parser() -> (ParamsParser, SchemaParamHandles) {
 
     let replication_strategy = parser.simple_subparam(
         "strategy=",
-        r"^.*$",
         Some("SimpleStrategy"),
         "The replication strategy to use",
         false,
     );
-    let replication_factor = parser.simple_subparam(
-        "factor=",
-        r"^[0-9]+$",
-        Some("1"),
-        "The number of replicas",
-        false,
-    );
+    let replication_factor =
+        parser.simple_subparam("factor=", Some("1"), "The number of replicas", false);
     // Multiparameter with two predefined parameters: `strategy` and `factor`.
     let replication = parser.multi_param(
         "replication",
@@ -108,18 +102,12 @@ fn prepare_parser() -> (ParamsParser, SchemaParamHandles) {
     );
     let keyspace = parser.simple_param(
         "keyspace=",
-        r"^.*$",
         Some("keyspace1"),
         "The keyspace name to use",
         false,
     );
-    let compaction_strategy = parser.simple_subparam(
-        "strategy=",
-        r"^.*$",
-        None,
-        "The compaction strategy to use",
-        false,
-    );
+    let compaction_strategy =
+        parser.simple_subparam("strategy=", None, "The compaction strategy to use", false);
     let compaction = parser.multi_param(
         "compaction",
         &[&compaction_strategy],
@@ -128,7 +116,6 @@ fn prepare_parser() -> (ParamsParser, SchemaParamHandles) {
     );
     let compression = parser.simple_param(
         "compression=",
-        r"^.*$",
         None,
         "Specify the compression to use for sstable, default:no compression",
         false,

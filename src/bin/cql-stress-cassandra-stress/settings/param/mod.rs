@@ -4,16 +4,12 @@ use std::{cell::RefCell, rc::Rc};
 mod multi_param;
 mod parser;
 mod simple_param;
-use regex::Regex;
+pub mod types;
 
 pub use multi_param::MultiParamAcceptsArbitraryHandle;
 pub use multi_param::MultiParamHandle;
 pub use parser::ParamsParser;
 pub use simple_param::SimpleParamHandle;
-
-fn regex_is_empty(regex: &Regex) -> bool {
-    regex.as_str() == "^$"
-}
 
 /// An 'interface' of parameter.
 ///

@@ -1,8 +1,8 @@
 use crate::settings::{
-    param::{ParamsParser, SimpleParamHandle},
+    param::{types::Rate, ParamsParser, SimpleParamHandle},
     ParsePayload,
 };
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 pub struct RateOption {
     threads_info: ThreadsInfo,
@@ -76,20 +76,12 @@ impl RateOption {
     }
 
     fn from_handles(handles: RateParamHandles) -> Result<Self> {
-        let threads = handles.threads.get_type::<u64>();
-        let throttle = handles
-            .throttle
-            .get()
-            .map(|th| parse_per_second(&th))
-            .transpose()?;
-        let fixed_rate = handles
-            .fixed
-            .get()
-            .map(|fix| parse_per_second(&fix))
-            .transpose()?;
-        let min_threads = handles.threads_gte.get_type::<u64>();
-        let max_threads = handles.threads_lte.get_type::<u64>();
-        let auto = handles.auto.supplied_by_user();
+        let threads = handles.threads.get();
+        let throttle = handles.throttle.get();
+        let fixed_rate = handles.fixed.get();
+        let min_threads = handles.threads_gte.get();
+        let max_threads = handles.threads_lte.get();
+        let auto = handles.auto.get().is_some();
 
         let threads_info = match (min_threads, max_threads) {
             (Some(min_threads), Some(max_threads)) => ThreadsInfo::Auto {
@@ -111,61 +103,44 @@ impl RateOption {
 }
 
 struct RateParamHandles {
-    pub threads: SimpleParamHandle,
-    pub throttle: SimpleParamHandle,
-    pub fixed: SimpleParamHandle,
-    pub threads_gte: SimpleParamHandle,
-    pub threads_lte: SimpleParamHandle,
-    pub auto: SimpleParamHandle,
-}
-
-fn parse_per_second(arg: &str) -> Result<u64> {
-    arg[..arg.len() - 2]
-        .parse::<u64>()
-        .with_context(|| format!("Value {} must end with '/s'", arg))
+    pub threads: SimpleParamHandle<u64>,
+    pub throttle: SimpleParamHandle<Rate>,
+    pub fixed: SimpleParamHandle<Rate>,
+    pub threads_gte: SimpleParamHandle<u64>,
+    pub threads_lte: SimpleParamHandle<u64>,
+    pub auto: SimpleParamHandle<bool>,
 }
 
 fn prepare_parser() -> (ParamsParser, RateParamHandles) {
     let mut parser = ParamsParser::new(RateOption::CLI_STRING);
 
-    let threads = parser.simple_param(
-        "threads=",
-        r"^[0-9]+$",
-        None,
-        "run this many clients concurrently",
-        true,
-    );
+    let threads = parser.simple_param("threads=", None, "run this many clients concurrently", true);
     let throttle = parser.simple_param(
         "throttle=",
-        r"^[0-9]+/s$",
         None,
         "throttle operations per second across all clients to a maximum rate (or less) with no implied schedule",
         false,
     );
     let fixed = parser.simple_param(
         "fixed=",
-        r"^[0-9]+/s$",
         None,
         "expect fixed rate of operations per second across all clients with implied schedule",
         false,
     );
     let threads_gte = parser.simple_param(
         "threads>=",
-        r"^[0-9]+$",
         Some("4"),
         "run at least this many clients concurrently",
         false,
     );
     let threads_lte = parser.simple_param(
         "threads<=",
-        r"^[0-9]+$",
         Some("1000"),
         "run at most this many clients concurrently",
         false,
     );
     let auto = parser.simple_param(
         "auto",
-        r"^$",
         None,
         "stop increasing threads once throughput saturates",
         false,

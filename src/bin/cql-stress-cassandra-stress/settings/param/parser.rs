@@ -4,6 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use super::{
     multi_param::{ArbitraryParamsAcceptance, MultiParam},
     simple_param::{SimpleParam, SimpleParamHandle},
+    types::Parsable,
     MultiParamHandle, ParamCell, ParamHandle, ParamMatchResult,
 };
 
@@ -93,20 +94,15 @@ impl ParamsParser {
 
     /// Registers the simple parameter provided by the user and returns the handle.
     /// `value_pattern` has to be a regular expression, otherwise we panic.
-    pub fn simple_param(
+    pub fn simple_param<T: Parsable + 'static>(
         &mut self,
         prefix: &'static str,
-        value_pattern: &'static str,
         default: Option<&'static str>,
         desc: &'static str,
         required: bool,
-    ) -> SimpleParamHandle {
+    ) -> SimpleParamHandle<T> {
         let param = Rc::new(RefCell::new(SimpleParam::new(
-            prefix,
-            value_pattern,
-            default,
-            desc,
-            required,
+            prefix, default, desc, required,
         )));
 
         self.params.push(Rc::clone(&param) as ParamCell);
@@ -117,20 +113,15 @@ impl ParamsParser {
     /// In contrast to [simple_param] - parser won't add the param to its vector.
     /// This results in the owner of the subparameter
     /// being responsible for displaying the subparameter's help message.
-    pub fn simple_subparam(
+    pub fn simple_subparam<T: Parsable + 'static>(
         &mut self,
         prefix: &'static str,
-        value_pattern: &'static str,
         default: Option<&'static str>,
         desc: &'static str,
         required: bool,
-    ) -> SimpleParamHandle {
+    ) -> SimpleParamHandle<T> {
         let param = Rc::new(RefCell::new(SimpleParam::new(
-            prefix,
-            value_pattern,
-            default,
-            desc,
-            required,
+            prefix, default, desc, required,
         )));
 
         SimpleParamHandle::new(param)
@@ -224,52 +215,58 @@ impl ParamsParser {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::settings::param::SimpleParamHandle;
 
     use super::ParamsParser;
 
-    fn prepare_parser() -> (
-        ParamsParser,
-        (SimpleParamHandle, SimpleParamHandle, SimpleParamHandle),
-    ) {
+    struct TestHandles {
+        count: SimpleParamHandle<u64>,
+        foo: SimpleParamHandle<bool>,
+        duration: SimpleParamHandle<Duration>,
+    }
+
+    fn prepare_parser() -> (ParamsParser, TestHandles) {
         // Create a parser.
         let mut parser = ParamsParser::new("some_parser");
 
         // Define 3 parameters and get their corresponding handles.
-        let count = parser.simple_param("count=", r"^[0-9]+$", None, "this is count", true);
+        let count = parser.simple_param("count=", None, "this is count", true);
 
         // Parameters with empty value_pattern (regex) are boolean flags.
-        let foo = parser.simple_param("foo", r"^$", None, "this is foo", false);
-        let duration = parser.simple_param(
-            "duration=",
-            r"^[0-9]+[smh]$",
-            Some("10s"),
-            "this is duration",
-            false,
-        );
+        let foo = parser.simple_param("foo", None, "this is foo", false);
+        let duration = parser.simple_param("duration=", Some("10s"), "this is duration", false);
 
         // Group the parameters. Meaning that if a user defined,
         // for example `count=` and `duration=` at the same time, the parsing should fail.
         parser.group(&[&count, &foo]);
         parser.group(&[&duration]);
 
-        (parser, (count, foo, duration))
+        (
+            parser,
+            TestHandles {
+                count,
+                foo,
+                duration,
+            },
+        )
     }
 
     #[test]
     fn parser_success_test() {
         let args = vec!["count=100", "foo"];
-        let (parser, (count, foo, duration)) = prepare_parser();
+        let (parser, handles) = prepare_parser();
 
         assert!(parser.parse(args).is_ok());
 
         // We can now retrieve the parsed values from the handles.
-        assert_eq!(Some(100), count.get_type::<u64>());
-        assert!(foo.supplied_by_user());
+        assert_eq!(100, handles.count.get().unwrap());
+        assert!(handles.foo.get().is_some());
 
         // Even though `duration` has some default value, it doesn't belong
         // to the same group as `count`. This is why we get `None`.
-        assert_eq!(None, duration.get());
+        assert_eq!(None, handles.duration.get());
     }
 
     #[test]

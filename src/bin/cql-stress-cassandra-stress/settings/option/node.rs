@@ -6,7 +6,7 @@ use std::{
 use anyhow::{Context, Result};
 
 use crate::settings::{
-    param::{ParamsParser, SimpleParamHandle},
+    param::{types::CommaDelimitedList, ParamsParser, SimpleParamHandle},
     ParsePayload,
 };
 
@@ -44,12 +44,12 @@ impl NodeOption {
 
     fn from_handles(handles: NodeParamHandles) -> Result<NodeOption> {
         let datacenter = handles.datacenter.get();
-        let whitelist = handles.whitelist.supplied_by_user();
+        let whitelist = handles.whitelist.get().is_some();
         let file = handles.file.get();
         let nodes = handles.nodes.get();
 
         let nodes = match nodes {
-            Some(nodes) => nodes.split(',').map(|nd| nd.to_owned()).collect(),
+            Some(nodes) => nodes,
             // SAFETY: Parameters are grouped in a way that either `nodes` or `file` is Some.
             // Note that it's never the case that both of them are Some.
             _ => read_nodes_from_file(&file.unwrap())?,
@@ -64,10 +64,10 @@ impl NodeOption {
 }
 
 struct NodeParamHandles {
-    datacenter: SimpleParamHandle,
-    whitelist: SimpleParamHandle,
-    file: SimpleParamHandle,
-    nodes: SimpleParamHandle,
+    datacenter: SimpleParamHandle<String>,
+    whitelist: SimpleParamHandle<bool>,
+    file: SimpleParamHandle<String>,
+    nodes: SimpleParamHandle<CommaDelimitedList>,
 }
 
 fn prepare_parser() -> (ParamsParser, NodeParamHandles) {
@@ -75,22 +75,19 @@ fn prepare_parser() -> (ParamsParser, NodeParamHandles) {
 
     let datacenter = parser.simple_param(
         "datacenter=",
-        r"^.*$",
         None,
         "Preferred datacenter for the default load balancing policy",
         false,
     );
     let whitelist = parser.simple_param(
         "whitelist",
-        r"^$",
         None,
         "Limit communications to the provided nodes",
         false,
     );
-    let file = parser.simple_param("file=", r"^.*$", None, "Node file (one per line)", false);
+    let file = parser.simple_param("file=", None, "Node file (one per line)", false);
     let nodes = parser.simple_param(
         "",
-        r"^[^=,]+(,[^=,]+)*$",
         Some("localhost"),
         "comma delimited list of nodes",
         false,
