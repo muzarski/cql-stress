@@ -6,6 +6,7 @@ mod parser;
 mod simple_param;
 use regex::Regex;
 
+pub use multi_param::MultiParamAcceptsArbitraryHandle;
 pub use multi_param::MultiParamHandle;
 pub use parser::ParamsParser;
 pub use simple_param::SimpleParamHandle;
