@@ -1,5 +1,6 @@
 use std::{cell::RefCell, fmt, rc::Rc, str::FromStr};
 
+use anyhow::Result;
 use regex::Regex;
 
 use super::{regex_is_empty, Param, ParamCell, ParamHandle, ParamMatchResult};
@@ -79,14 +80,15 @@ impl Param for SimpleParam {
         ))
     }
 
-    fn parse(&mut self, arg: &str) {
+    fn parse(&mut self, arg: &str) -> Result<()> {
         match self.try_match(arg) {
             ParamMatchResult::Match => {
                 let arg_val = &arg[self.prefix.len()..];
                 self.supplied_by_user = true;
                 self.value = Some(arg_val.to_string());
+                Ok(())
             }
-            _ => panic!("Cannot parse the parameter: {} with argument: {}. Make sure that Param::is_match returns `Match` before calling this method.", self.prefix, arg),
+            _ => Err(anyhow::anyhow!("Cannot parse the parameter: {} with argument: {}. Make sure that Param::is_match returns `Match` before calling this method.", self.prefix, arg)),
         }
     }
 

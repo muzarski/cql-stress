@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::{cell::RefCell, rc::Rc};
 
 mod parser;
@@ -24,8 +25,8 @@ pub trait Param {
     /// - ParamMatchResult::Error if argument matches the prefix, but doesn't satisfy the value pattern
     /// - ParamMatchResult::Match if argument matches both prefix and value pattern.
     fn try_match(&self, arg: &str) -> ParamMatchResult;
-    /// Sets the parameter's value to `arg`. Will panic if `try_match` doesn't return ParamMatchResult::Match.
-    fn parse(&mut self, arg: &str);
+    /// Sets the parameter's value to `arg`.
+    fn parse(&mut self, arg: &str) -> Result<()>;
     /// Tells whether the parameter was parsed with the user-provided argument.
     fn supplied_by_user(&self) -> bool;
     fn required(&self) -> bool;

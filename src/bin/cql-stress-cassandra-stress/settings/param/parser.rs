@@ -135,7 +135,7 @@ impl ParamsParser {
                     ParamMatchResult::Error(e) => return Err(e),
                     ParamMatchResult::NoMatch => (),
                     ParamMatchResult::Match => {
-                        borrowed.parse(arg);
+                        borrowed.parse(arg)?;
                         consumed = true;
                         break;
                     }
