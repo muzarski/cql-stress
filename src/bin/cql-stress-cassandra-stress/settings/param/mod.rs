@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::{cell::RefCell, rc::Rc};
 
+mod multi_param;
 mod parser;
 mod simple_param;
 use regex::Regex;
