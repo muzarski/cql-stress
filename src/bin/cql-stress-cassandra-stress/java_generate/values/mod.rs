@@ -112,6 +112,10 @@ impl Generator {
                 "Unsupported column type: {:?}. UDTs are not yet supported by the tool!",
                 typ
             ),
+            CqlType::Vector { .. } => anyhow::bail!(
+                "Unsupported column type: {:?}. CQL Vectors are not yet supported by the tool!",
+                typ
+            ),
         }
     }
 
